@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام إدارة الرواتب</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+            background-color: #f5f5f5;
+        }
+        .table-header {
+            background-color: #3f51b5; /* Indigo */
+            color: white;
+        }
+        /* Base button styles */
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem; /* rounded-md */
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); /* shadow-sm */
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+            font-weight: 500; /* medium */
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn:hover {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* hover:shadow-lg */
+        }
+        .btn:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(63, 81, 181, 0.5), 0 0 0 1px rgba(63, 81, 181, 0.5); /* focus:ring-2 focus:ring-offset-2 focus:ring-[#303f9f] */
+        }
+        /* Specific button colors */
+        .btn-primary {
+            background-color: #3f51b5; /* Indigo */
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #303f9f; /* Dark Indigo */
+        }
+        .btn-info {
+            background-color: #03a9f4; /* Light Blue */
+            color: white;
+        }
+        .btn-info:hover {
+            background-color: #0288d1; /* Darker Light Blue */
+        }
+        .btn-success {
+            background-color: #4caf50; /* Green */
+            color: white;
+        }
+        .btn-success:hover {
+            background-color: #388e3c; /* Darker Green */
+        }
+        .btn-danger {
+            background-color: #f44336; /* Red */
+            color: white;
+        }
+        .btn-danger:hover {
+            background-color: #d32f2f; /* Darker Red */
+        }
+        .btn-secondary {
+            background-color: #757575; /* Medium Gray */
+            color: white;
+        }
+        .btn-secondary:hover {
+            background-color: #616161; /* Darker Gray */
+        }
+        .card {
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 10% auto; /* Adjusted margin for better centering */
+            padding: 20px;
+            border: 1px solid #888;
+            width: 90%;
+            max-width: 500px;
+            border-radius: 8px;
+        }
+        .close-button {
+            color: #aaa;
+            float: left; /* Adjusted for LTR close button position */
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close-button:hover,
+        .close-button:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        /* Tab Styles */
+        .tab-button {
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            color: #757575; /* Medium Gray */
+        }
+        .tab-button.active {
+            border-bottom-color: #3f51b5; /* Indigo */
+            color: #3f51b5; /* Indigo */
+            font-weight: bold;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .report-section {
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #e0e0e0;
+        }
+        /* Dashboard Card Styles */
+        .dashboard-card {
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 1.5rem;
+            text-align: center;
+        }
+        .dashboard-card h3 {
+            font-size: 1.125rem; /* text-lg */
+            font-weight: 600; /* font-semibold */
+            color: #424242; /* Gray 800 */
+            margin-bottom: 0.5rem;
+        }
+        .dashboard-card p {
+            font-size: 2.25rem; /* text-4xl */
+            font-weight: 700; /* font-bold */
+            color: #3f51b5; /* Indigo */
+        }
+        .dashboard-card.red p {
+            color: #f44336; /* Red */
+        }
+        .dashboard-card.orange p {
+            color: #ff9800; /* Orange */
+        }
+        .dashboard-card.green p {
+            color: #4caf50; /* Green */
+        }
+        /* Style for settled advances */
+        .advance-settled {
+            background-color: #e8f5e9; /* Light green for settled */
+            color: #616161;
+        }
+        .advance-partially-paid {
+            background-color: #fff3e0; /* Light orange for partially paid */
+        }
+        .sort-indicator {
+            font-size: 0.8em;
+            margin-right: 5px; /* Adjusted for RTL */
+        }
+        /* Toast Notification Styles */
+        #toastNotification {
+            /* Classes base will be applied by JS */
+        }
+        #toastNotification.success {
+            background-color: #4caf50; /* Green */
+        }
+        #toastNotification.error {
+            background-color: #f44336; /* Red */
+        }
+        #toastNotification.info {
+            background-color: #03a9f4; /* Light Blue */
+        }
+
+        /* Custom form input styling */
+        .form-input {
+            margin-top: 0.25rem; /* mt-1 */
+            display: block; /* block */
+            width: 100%; /* w-full */
+            padding-left: 0.75rem; /* px-3 */
+            padding-right: 0.75rem; /* px-3 */
+            padding-top: 0.5rem; /* py-2 */
+            padding-bottom: 0.5rem; /* py-2 */
+            border: 1px solid #d1d5db; /* border border-gray-300 */
+            border-radius: 0.375rem; /* rounded-md */
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); /* shadow-sm */
+            font-size: 0.875rem; /* sm:text-sm */
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: #3f51b5; /* focus:border-[#3f51b5] */
+            box-shadow: 0 0 0 1px #3f51b5, 0 0 0 1px #3f51b5; /* focus:ring-[#3f51b5] */
+        }
+        .form-select {
+            margin-top: 0.25rem; /* mt-1 */
+            display: block; /* block */
+            width: 100%; /* w-full */
+            padding-left: 0.75rem; /* px-3 */
+            padding-right: 0.75rem; /* px-3 */
+            padding-top: 0.5rem; /* py-2 */
+            padding-bottom: 0.5rem; /* py-2 */
+            border: 1px solid #d1d5db; /* border border-gray-300 */
+            border-radius: 0.375rem; /* rounded-md */
+            background-color: #ffffff; /* bg-white */
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); /* shadow-sm */
+            font-size: 0.875rem; /* sm:text-sm */
+        }
+        .form-select:focus {
+            outline: none;
+            border-color: #3f51b5; /* focus:border-[#3f51b5] */
+            box-shadow: 0 0 0 1px #3f51b5, 0 0 0 1px #3f51b5; /* focus:ring-[#3f51b5] */
+        }
+        .filter-input {
+            width: 100%;
+            padding: 0.25rem 0.5rem; /* px-2 py-1 */
+            border: 1px solid #d1d5db; /* border border-gray-300 */
+            border-radius: 0.375rem; /* rounded-md */
+            font-size: 0.875rem; /* text-sm */
+        }
+        .filter-input:focus {
+            outline: none;
+            border-color: #4f46e5; /* focus:border-indigo-500 */
+            box-shadow: 0 0 0 1px #4f46e5; /* focus:ring-indigo-500 */
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+    <div class="container mx-auto p-4 sm:p-6">
+        <header class="bg-[#3f51b5] text-white text-center py-6 mb-8 rounded-lg shadow-md">
+            <h1 class="text-2xl sm:text-3xl font-bold">نظام إدارة مؤسسة فهد ضاوي الحربي </h1>
+            <h1 class="text-2xl sm:text-3xl font-bold">تصميم واعداد وتنفيذ(ابراهيم صلاح )   </h1>
+            <button id="logoutButton" class="btn btn-secondary mt-4 px-4 py-2 text-sm">تسجيل الخروج</button>
+        </header>
+
+        <div class="mb-6 bg-white rounded-lg shadow">
+            <nav class="flex flex-wrap justify-center sm:justify-start">
+                <button class="tab-button active" data-tab="dashboard">
+                    لوحة التحكم <span id="dashboardNotificationBadge" class="inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 bg-red-600 rounded-full ml-1 hidden">0</span>
+                </button>
+                <button class="tab-button" data-tab="category-management">إدارة الأقسام</button>
+                <button class="tab-button" data-tab="employee-management">إدارة الموظفين</button>
+                <button class="tab-button" data-tab="salary-management">إدارة الرواتب</button>
+                <button class="tab-button" data-tab="vacation-management">إدارة الإجازات</button>
+                <button class="tab-button" data-tab="reports-management">التقارير</button>
+                <button class="tab-button" data-tab="violations-management">إدارة المخالفات</button>
+                <button class="tab-button" data-tab="residency-expiry-management">انتهاء الإقامة</button>
+                <button class="tab-button" data-tab="advances-management">إدارة السلف</button>
+                <button class="tab-button" data-tab="car-assignments">تخصيص السيارات</button>
+            </nav>
+        </div>
+
+        <div id="dashboard" class="tab-content active card p-4 sm:p-6 mb-8">
+            <h2 class="text-xl sm:text-2xl font-bold text-[#3f51b5] mb-6 border-b-2 border-[#3f51b5] pb-2">لوحة التحكم</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="dashboard-card">
+                    <h3>إجمالي الموظفين</h3>
+                    <p id="totalEmployeesCount">0</p>
+                </div>
+                <div class="dashboard-card">
+                    <h3>إجمالي الرواتب المدفوعة (الشهر الأخير)</h3>
+                    <p id="totalMonthlySalaries">0.00 ريال</p>
+                </div>
+                <div class="dashboard-card red">
+                    <h3>إقامات منتهية/قريبة الانتهاء</h3>
+                    <p id="expiringResidenciesCount">0</p>
+                </div>
+                <div class="dashboard-card orange">
+                    <h3>إجمالي السلف المستحقة</h3>
+                    <p id="totalOutstandingAdvances">0.00 ريال</p>
+                </div>
+                <div class="dashboard-card red">
+                    <h3>مخالفات غير مدفوعة/قيد المراجعة</h3>
+                    <p id="unpaidViolationsCount">0</p>
+                </div>
+                 <div class="dashboard-card green">
+                    <h3>موظفون في إجازة حالياً</h3>
+                    <p id="employeesOnVacationCount">0</p>
+                </div>
+            </div>
+            <div class="mt-8 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                <h3 class="text-lg sm:text-xl font-semibold text-gray-700 mb-3">ملخص الرواتب السنوي</h3>
+                <div class="flex items-center mb-4">
+                    <label for="dashboardYearSelect" class="block text-sm font-medium text-gray-700 mr-2">السنة:</label>
+                    <select id="dashboardYearSelect" class="form-select w-auto"></select>
+                </div>
+                <div id="annualSalarySummary" class="overflow-x-auto">
+                    <p class="text-gray-500">جاري تحميل ملخص الرواتب السنوي...</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="category-management" class="tab-content card p-4 sm:p-6 mb-8">
+            <h2 class="text-xl sm:text-2xl font-bold text-[#3f51b5] mb-6 border-b-2 border-[#3f51b5] pb-2">إدارة الأقسام</h2>
+            <div class="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                <h3 class="text-lg sm:text-xl font-semibold text-gray-700 mb-3">إضافة / تحديث قسم</h3>
+                <form id="categoryForm" class="space-y-4">
+                    <input type="hidden" id="categoryId" name="categoryId">
+                    <div>
+                        <label for="categoryName" class="block text-sm font-medium text-gray-700 mb-1">اسم القسم:</label>
+                        <input type="text" id="categoryName" name="categoryName" required class="form-input">
+                    </div>
+                    <div class="flex space-x-3 space-x-reverse">
+                        <button type="submit" id="saveCategoryButton" class="btn btn-primary">
+                            إضافة قسم
+                        </button>
+                        <button type="button" id="clearCategoryFormButton" class="btn btn-secondary">
+                            مسح الحقل
+                        </button>
+                    </div>
+                </form>
+            </div>
+            <div class="mb-4">
+                <input type="text" id="categoriesTableSearch" placeholder="بحث في الأقسام..." class="form-input">
+            </div>
+            <div class="overflow-x-auto">
+                <h3 class="text-lg sm:text-xl font-semibold text-gray-700 mb-3 mt-6">قائمة الأقسام</h3>
+                <table id="categoriesTable" class="min-w-full divide-y divide-gray-200 border border-gray-300">
+                    <thead class="table-header">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="id">م <span id="categoriesTable_idSortIndicator" class="sort-indicator"></span></th>
+                            <th scope="col" class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="name">اسم القسم <span id="categoriesTable_nameSortIndicator" class="sort-indicator"></span></th>
+                            <th scope="col" class="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider">إجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <tr><td colspan="3" class="px-6 py-4 text-center">جاري تحميل البيانات...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="employee-management" class="tab-content card p-4 sm:p-6 mb-8">
+            <h2 class="text-xl sm:text-2xl font-bold text-[#3f51b5] mb-6 border-b-2 border-[#3f51b5] pb-2">إدارة الموظفين</h2>
+            <div class="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                <h3 class="text-lg sm:text-xl font-semibold text-gray-700 mb-3">إضافة / تحديث موظف</h3>
+                <form id="employeeForm" class="space-y-4">
+                    <input type="hidden" id="employeeId" name="employeeId">
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4"> <div>
+                            <label for="employeeName" class="block text-sm font-medium text-gray-700 mb-1">اسم الموظف:</label>
+                            <input type="text" id="employeeName" name="employeeName" required class="form-input">
+                        </div>
+                        <div>
+                            <label for="employeeCategory" class="block text-sm font-medium text-gray-700 mb-1">فئة الموظف:</label>
+                            <select id="employeeCategory" name="employeeCategory" required class="form-select">
+                                <option value="">اختر فئة...</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="employeeDateOfBirth" class="block text-sm font-medium text-gray-700 mb-1">تاريخ الميلاد:</label>
+                            <input type="date" id="employeeDateOfBirth" name="employeeDateOfBirth" class="form-input">
+                        </div>
+                        <div>
+                            <label for="employeeIdNumber" class="block text-sm font-medium text-gray-700 mb-1">رقم الهوية:</label>
+                            <input type="text" id="employeeIdNumber" name="employeeIdNumber" class="form-input">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="employeeIdExpiryDate" class="block text-sm font-medium text-gray-700 mb-1">تاريخ انتهاء الهوية:</label>
+                            <input type="date" id="employeeIdExpiryDate" name="employeeIdExpiryDate" class="form-input">
+                        </div>
+                        <div>
+                            <label for="employeeIdIssuanceNumber" class="block text-sm font-medium text-gray-700 mb-1">رقم إصدار الهوية:</label>
+                            <input type="text" id="employeeIdIssuanceNumber" name="employeeIdIssuanceNumber" class="form-input">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="employeeCompanyName" class="block text-sm font-medium text-gray-700 mb-1">اسم المنشأة التابع لها:</label>
+                            <input type="text" id="employeeCompanyName" name="employeeCompanyName" class="form-input">
+                        </div>
+                        <div>
+                            <label for="employeeCompanyId" class="block text-sm font-medium text-gray-700 mb-1">رقم المنشأة:</label>
+                            <input type="text" id="employeeCompanyId" name="employeeCompanyId" class="form-input">
+                        </div>
+                    </div>
+                    <div>
+                        <label for="employeeCarNumber" class="block text-sm font-medium text-gray-700 mb-1">رقم السيارة المخصصة له:</label>
+                        <input type="text" id="employeeCarNumber" name="employeeCarNumber" class="form-input">
+                    </div>
+                    <div>
+                        <label for="employeeNotes" class="block text-sm font-medium text-gray-700 mb-1">ملاحظات:</label>
+                        <textarea id="employeeNotes" name="employeeNotes" rows="3" class="form-input"></textarea>
+                    </div>
+                    <div class="flex space-x-3 space-x-reverse">
+                        <button type="submit" id="saveEmployeeButton" class="btn btn-primary">إضافة موظف</button>
+                        <button type="button" id="clearEmployeeFormButton" class="btn btn-secondary">مسح الحقول</button>
+                    </div>
+                </form>
+            </div>
+            <div class="mb-4">
+                <label for="employeesTableSearch" class="sr-only">بحث عام في الموظفين</label>
+                <input type="text" id="employeesTableSearch" placeholder="بحث عام في الموظفين..." class="form-input">
+            </div>
+            <div class="overflow-x-auto">
+                <h3 class="text-lg sm:text-xl font-semibold text-gray-700 mb-3 mt-6">قائمة الموظفين</h3>
+                <table id="employeesTable" class="min-w-full divide-y divide-gray-200 border border-gray-300">
+                    <thead class="table-header">
+                        <tr>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="id">م <span id="employeesTable_idSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="name">الاسم <span id="employeesTable_nameSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="categoryName">الفئة <span id="employeesTable_categoryNameSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="dateOfBirth">تاريخ الميلاد <span id="employeesTable_dateOfBirthSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="idNumber">رقم الهوية <span id="employeesTable_idNumberSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="idIssuanceNumber">رقم إصدار الهوية <span id="employeesTable_idIssuanceNumberSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="idExpiryDate">انتهاء الهوية <span id="employeesTable_idExpiryDateSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="vacationStatus">حالة الإجازة <span id="employeesTable_vacationStatusSortIndicator" class="sort-indicator"></span></th> <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="companyName">اسم المنشأة <span id="employeesTable_companyNameSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="companyId">رقم المنشأة <span id="employeesTable_companyIdSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="carNumber">رقم السيارة <span id="employeesTable_carNumberSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="notes">ملاحظات <span id="employeesTable_notesSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider">إجراءات</th>
+                        </tr>
+                        <tr class="bg-gray-200">
+                            <th class="px-1 py-1"></th> <th class="px-1 py-1">
+                                <input type="text" id="filterEmployeeName" placeholder="بحث بالاسم..." class="filter-input">
+                            </th>
+                            <th class="px-1 py-1">
+                                <select id="filterEmployeeCategory" class="filter-input bg-white">
+                                    <option value="">الكل</option>
+                                    </select>
+                            </th>
+                            <th class="px-1 py-1"></th> <th class="px-1 py-1">
+                                <input type="text" id="filterEmployeeIdNumber" placeholder="بحث بالهوية..." class="filter-input">
+                            </th>
+                            <th class="px-1 py-1"></th> <th class="px-1 py-1"></th><th class="px-1 py-1"></th> <th class="px-1 py-1">
+                                <input type="text" id="filterEmployeeCompanyName" placeholder="بحث بالمنشأة..." class="filter-input">
+                            </th>
+                            <th class="px-1 py-1"></th> <th class="px-1 py-1">
+                                <input type="text" id="filterEmployeeCarNumber" placeholder="بحث بالسيارة..." class="filter-input">
+                            </th>
+                            <th class="px-1 py-1"></th> <th class="px-1 py-1"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                         <tr><td colspan="13" class="px-6 py-4 text-center">جاري تحميل البيانات...</td></tr> </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="salary-management" class="tab-content card p-4 sm:p-6 mb-8">
+            <h2 class="text-xl sm:text-2xl font-bold text-[#3f51b5] mb-6 border-b-2 border-[#3f51b5] pb-2">إدارة الرواتب</h2>
+             <div class="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                <h3 class="text-lg sm:text-xl font-semibold text-gray-700 mb-3">إضافة / تحديث راتب</h3>
+                <form id="salaryForm" class="space-y-4">
+                    <input type="hidden" id="salaryId" name="salaryId">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="salaryEmployee" class="block text-sm font-medium text-gray-700 mb-1">الموظف:</label>
+                            <select id="salaryEmployee" name="salaryEmployee" required class="form-select">
+                                <option value="">اختر موظف...</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="salaryBasic" class="block text-sm font-medium text-gray-700 mb-1">الراتب الأساسي:</label>
+                            <input type="number" id="salaryBasic" name="salaryBasic" step="0.01" required class="form-input">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="salaryAllowances" class="block text-sm font-medium text-gray-700 mb-1">البدلات:</label>
+                            <input type="number" id="salaryAllowances" name="salaryAllowances" step="0.01" value="0" class="form-input">
+                        </div>
+                        <div>
+                            <label for="salaryDeductions" class="block text-sm font-medium text-gray-700 mb-1">الخصومات:</label>
+                            <input type="number" id="salaryDeductions" name="salaryDeductions" step="0.01" value="0" class="form-input">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                         <div>
+                            <label for="salaryDate" class="block text-sm font-medium text-gray-700 mb-1">تاريخ الراتب:</label>
+                            <input type="date" id="salaryDate" name="salaryDate" required class="form-input">
+                        </div>
+                        <div>
+                            <label for="salaryPaymentMethod" class="block text-sm font-medium text-gray-700 mb-1">طريقة الدفع:</label>
+                            <select id="salaryPaymentMethod" name="salaryPaymentMethod" required class="form-select">
+                                <option value="تحويل">تحويل</option>
+                                <option value="كاش">كاش</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label for="salaryPayrollPeriod" class="block text-sm font-medium text-gray-700 mb-1">فترة الراتب:</label>
+                        <input type="text" id="salaryPayrollPeriod" name="salaryPayrollPeriod" placeholder="مثال: يناير 2024" class="form-input">
+                    </div>
+                     <div id="salaryVacationInfo" class="col-span-1 md:col-span-2 mt-2 p-3 bg-yellow-100 border border-yellow-300 rounded-md" style="display: none;">
+                        <p class="text-sm text-yellow-700"><strong>تنبيه إجازة:</strong> <span id="vacationAlertMessage"></span></p>
+                    </div>
+                    <div class="flex flex-wrap gap-2 pt-2">
+                        <button type="submit" id="saveSalaryButton" class="btn btn-primary">إضافة راتب</button>
+                        <button type="button" id="copyPreviousMonthSalaryButton" class="btn btn-info">نسخ راتب الشهر السابق للموظف الحالي</button>
+                        <button type="button" id="autoPopulateSalariesButton" class="btn btn-success">إعداد رواتب الشهر الجديد تلقائياً</button>
+                        <button type="button" id="clearSalaryFormButton" class="btn btn-secondary">مسح الحقول</button>
+                    </div>
+                </form>
+            </div>
+            <div class="mb-4">
+                <input type="text" id="salariesTableSearch" placeholder="بحث في الرواتب..." class="form-input">
+            </div>
+            <div class="overflow-x-auto">
+                <h3 class="text-lg sm:text-xl font-semibold text-gray-700 mb-3 mt-6">سجل الرواتب</h3>
+                <table id="salariesTable" class="min-w-full divide-y divide-gray-200 border border-gray-300">
+                    <thead class="table-header">
+                        <tr>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="id">م <span id="salariesTable_idSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="employeeName">الموظف <span id="salariesTable_employeeNameSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="basic">الأساسي <span id="salariesTable_basicSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="allowances">البدلات <span id="salariesTable_allowancesSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="deductions">الخصومات <span id="salariesTable_deductionsSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="total">الإجمالي <span id="salariesTable_totalSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="date">التاريخ <span id="salariesTable_dateSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="paymentMethod">طريقة الدفع <span id="salariesTable_paymentMethodSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="payrollPeriod">فترة الراتب <span id="salariesTable_payrollPeriodSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider">إجراءات</th>
+                        </tr>
+                        <tr class="bg-gray-200">
+                            <th class="px-1 py-1"></th>
+                            <th class="px-1 py-1">
+                                <input type="text" id="filterSalaryEmployeeName" placeholder="بحث بالاسم..." class="filter-input">
+                            </th>
+                            <th class="px-1 py-1"></th>
+                            <th class="px-1 py-1"></th>
+                            <th class="px-1 py-1"></th>
+                            <th class="px-1 py-1"></th>
+                            <th class="px-1 py-1">
+                                <input type="date" id="filterSalaryDate" class="filter-input">
+                            </th>
+                            <th class="px-1 py-1">
+                                <select id="filterSalaryPaymentMethod" class="filter-input bg-white">
+                                    <option value="">الكل</option>
+                                    <option value="تحويل">تحويل</option>
+                                    <option value="كاش">كاش</option>
+                                </select>
+                            </th>
+                            <th class="px-1 py-1">
+                                <input type="text" id="filterSalaryPayrollPeriod" placeholder="بحث بالفترة..." class="filter-input">
+                            </th>
+                            <th class="px-1 py-1"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <tr><td colspan="10" class="px-6 py-4 text-center">جاري تحميل البيانات...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="vacation-management" class="tab-content card p-4 sm:p-6 mb-8">
+            <h2 class="text-xl sm:text-2xl font-bold text-[#3f51b5] mb-6 border-b-2 border-[#3f51b5] pb-2">إدارة الإجازات</h2>
+            <div class="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                <h3 class="text-lg sm:text-xl font-semibold text-gray-700 mb-3">إضافة / تعديل إجازة</h3>
+                <form id="vacationForm" class="space-y-4">
+                    <input type="hidden" id="vacationId" name="vacationId">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="vacationEmployee" class="block text-sm font-medium text-gray-700 mb-1">الموظف <span class="text-red-500">*</span>:</label>
+                            <select id="vacationEmployee" name="vacationEmployee" required class="form-select">
+                                <option value="">اختر موظف...</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="vacationType" class="block text-sm font-medium text-gray-700 mb-1">نوع الإجازة <span class="text-red-500">*</span>:</label>
+                            <select id="vacationType" name="vacationType" required class="form-select">
+                                <option value="">اختر نوع الإجازة...</option>
+                                <option value="سنوية">سنوية</option>
+                                <option value="مرضية">مرضية</option>
+                                <option value="بدون راتب">بدون راتب</option>
+                                <option value="طارئة">طارئة</option>
+                                <option value="أخرى">أخرى</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="vacationStartDate" class="block text-sm font-medium text-gray-700 mb-1">تاريخ بدء الإجازة <span class="text-red-500">*</span>:</label>
+                            <input type="date" id="vacationStartDate" name="vacationStartDate" required class="form-input">
+                        </div>
+                        <div>
+                            <label for="vacationEndDate" class="block text-sm font-medium text-gray-700 mb-1">تاريخ انتهاء الإجازة <span class="text-red-500">*</span>:</label>
+                            <input type="date" id="vacationEndDate" name="vacationEndDate" required class="form-input">
+                        </div>
+                    </div>
+                    <div>
+                        <label for="vacationNotes" class="block text-sm font-medium text-gray-700 mb-1">ملاحظات:</label>
+                        <textarea id="vacationNotes" name="vacationNotes" rows="3" class="form-input"></textarea>
+                    </div>
+                    <div class="flex space-x-3 space-x-reverse">
+                        <button type="submit" id="saveVacationButton" class="btn btn-primary">حفظ الإجازة</button>
+                        <button type="button" id="clearVacationFormButton" class="btn btn-secondary">إلغاء</button>
+                    </div>
+                </form>
+            </div>
+            <div class="mb-4">
+                <input type="text" id="vacationsTableSearch" placeholder="بحث في الإجازات..." class="form-input">
+            </div>
+            <div class="overflow-x-auto">
+                <h3 class="text-lg sm:text-xl font-semibold text-gray-700 mb-3 mt-6">سجل الإجازات</h3>
+                <table id="vacationsTable" class="min-w-full divide-y divide-gray-200 border border-gray-300">
+                    <thead class="table-header">
+                        <tr>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="id">م <span id="vacationsTable_idSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="employeeName">الموظف <span id="vacationsTable_employeeNameSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="vacationType">نوع الإجازة <span id="vacationsTable_vacationTypeSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="vacationStartDate">تاريخ البدء <span id="vacationsTable_startDateSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="vacationEndDate">تاريخ الانتهاء <span id="vacationsTable_endDateSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="duration">المدة (أيام) <span id="vacationsTable_durationSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="status">الحالة <span id="vacationsTable_statusSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="remainingTime">المدة المتبقية <span id="vacationsTable_remainingTimeSortIndicator" class="sort-indicator"></span></th> <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="notes">ملاحظات <span id="vacationsTable_notesSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider">إجراءات</th>
+                        </tr>
+                        <tr class="bg-gray-200">
+                            <th class="px-1 py-1"></th>
+                            <th class="px-1 py-1">
+                                <input type="text" id="filterVacationEmployeeName" placeholder="بحث بالاسم..." class="filter-input">
+                            </th>
+                            <th class="px-1 py-1">
+                                <select id="filterVacationType" class="filter-input bg-white">
+                                    <option value="">الكل</option>
+                                    <option value="سنوية">سنوية</option>
+                                    <option value="مرضية">مرضية</option>
+                                    <option value="بدون راتب">بدون راتب</option>
+                                    <option value="طارئة">طارئة</option>
+                                    <option value="أخرى">أخرى</option>
+                                </select>
+                            </th>
+                            <th class="px-1 py-1">
+                                <input type="date" id="filterVacationStartDate" class="filter-input">
+                            </th>
+                            <th class="px-1 py-1">
+                                <input type="date" id="filterVacationEndDate" class="filter-input">
+                            </th>
+                            <th class="px-1 py-1"></th>
+                            <th class="px-1 py-1">
+                                <select id="filterVacationStatus" class="filter-input bg-white">
+                                    <option value="">الكل</option>
+                                    <option value="حالية">حالية</option>
+                                    <option value="قادمة">قادمة</option>
+                                    <option value="منتهية">منتهية</option>
+                                </select>
+                            </th>
+                            <th class="px-1 py-1"></th>
+                            <th class="px-1 py-1"></th>
+                            <th class="px-1 py-1"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <tr><td colspan="10" class="px-6 py-4 text-center">جاري تحميل البيانات...</td></tr> </tbody>
+                </table>
+            </div>
+        </div>
+
+
+        <div id="reports-management" class="tab-content card p-4 sm:p-6 mb-8">
+            <h2 class="text-xl sm:text-2xl font-bold text-[#3f51b5] mb-6 border-b-2 border-[#3f51b5] pb-2">التقارير</h2>
+            <div class="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                <h3 class="text-lg sm:text-xl font-semibold text-gray-700 mb-3">التقارير السنوية والشهرية</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+                    <div>
+                        <label for="reportYearSelect" class="block text-sm font-medium text-gray-700 mb-1">السنة:</label>
+                        <select id="reportYearSelect" name="reportYearSelect" class="form-select">
+                        </select>
+                    </div>
+                    <div>
+                        <label for="reportMonthSelect" class="block text-sm font-medium text-gray-700 mb-1">الشهر:</label>
+                        <select id="reportMonthSelect" name="reportMonthSelect" class="form-select" disabled>
+                        </select>
+                    </div>
+                    <button id="generateStandardReportButton" class="btn btn-primary self-end">عرض التقرير</button>
+                </div>
+            </div>
+
+            <div class="report-section mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                <h3 class="text-lg sm:text-xl font-semibold text-gray-700 mb-3">تقارير مخصصة</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 items-end">
+                    <div>
+                        <label for="customReportTypeSelect" class="block text-sm font-medium text-gray-700 mb-1">نوع التقرير:</label>
+                        <select id="customReportTypeSelect" class="form-select">
+                            <option value="salarySlip">كشف راتب مفصل</option>
+                            <option value="detailedMonthlySalary">تقرير رواتب شهري مفصل</option>
+                            <option value="violationReport">تقرير المخالفات</option>
+                            <option value="residencyExpiryReport">تقرير انتهاء الإقامة</option>
+                            <option value="advanceReport">تقرير السلف</option>
+                            <option value="vacationReport">تقرير الإجازات</option>
+                            <option value="monthlySummary">ملخص شهري للرواتب (جديد)</option>
+                            <option value="yearlySummary">ملخص سنوي للرواتب (جديد)</option>
+                            <option value="comprehensiveData">تقرير بيانات شامل</option>
+                        </select>
+                    </div>
+                     <div>
+                        <label for="customReportEmployeeSelect" class="block text-sm font-medium text-gray-700 mb-1">الموظف:</label>
+                        <select id="customReportEmployeeSelect" class="form-select">
+                             <option value="0">جميع الموظفين</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="customReportCategorySelect" class="block text-sm font-medium text-gray-700 mb-1">الفئة:</label>
+                        <select id="customReportCategorySelect" class="form-select">
+                            <option value="0">جميع الفئات</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="customReportAdvanceStatusSelect" class="block text-sm font-medium text-gray-700 mb-1">حالة السلفة:</label>
+                        <select id="customReportAdvanceStatusSelect" class="form-select">
+                            <option value="all">الكل</option>
+                            <option value="مستحقة">مستحقة</option>
+                            <option value="مدفوع جزئياً">مدفوع جزئياً</option>
+                            <option value="مستوفاة">مستوفاة</option>
+                        </select>
+                    </div>
+                    <div id="customReportVacationStatusDiv" style="display: none;"> <label for="customReportVacationStatusSelect" class="block text-sm font-medium text-gray-700 mb-1">حالة الإجازة:</label>
+                        <select id="customReportVacationStatusSelect" class="form-select">
+                            <option value="all">الكل</option>
+                            <option value="حالية">حالية</option>
+                            <option value="قادمة">قادمة</option>
+                            <option value="منتهية">منتهية</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="customReportYearSelect" class="block text-sm font-medium text-gray-700 mb-1">سنة التقرير:</label>
+                        <select id="customReportYearSelect" class="form-select">
+                        </select>
+                    </div>
+                    <div>
+                        <label for="customReportMonthSelect" class="block text-sm font-medium text-gray-700 mb-1">شهر التقرير:</label>
+                        <select id="customReportMonthSelect" class="form-select">
+                            <option value="all">كل الشهور</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="customReportStartDate" class="block text-sm font-medium text-gray-700 mb-1">تاريخ البدء:</label>
+                        <input type="date" id="customReportStartDate" class="form-input">
+                    </div>
+                    <div>
+                        <label for="customReportEndDate" class="block text-sm font-medium text-gray-700 mb-1">تاريخ الانتهاء:</label>
+                        <input type="date" id="customReportEndDate" class="form-input">
+                    </div>
+                </div>
+                <div class="mt-4">
+                     <button id="generateCustomReportButton" class="btn btn-success">إنشاء تقرير مخصص</button>
+                </div>
+            </div>
+
+            <div id="reportOutput" class="mt-6 p-4 border border-gray-200 rounded-lg min-h-[100px] bg-gray-50">
+                <p class="text-gray-500">سيتم عرض بيانات التقرير هنا...</p>
+            </div>
+
+            <div id="exportButtonsContainer" class="mt-4 flex gap-2 justify-center" style="display: none;">
+                <button id="exportExcelButton" class="btn btn-info">تصدير إلى Excel</button>
+                <button id="exportPdfButton" class="btn btn-danger">تصدير إلى PDF</button>
+            </div>
+
+            <div class="report-section mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                <h3 class="text-lg sm:text-xl font-semibold text-gray-700 mb-3">النسخ الاحتياطي واستعادة البيانات</h3>
+                <div class="flex flex-wrap gap-2">
+                    <button id="backupDataButton" class="btn btn-success">إنشاء نسخ احتياطي للبيانات</button>
+                    <input type="file" id="restoreFileInput" accept=".json" class="hidden" />
+                    <button id="restoreDataButton" class="btn btn-primary">استعادة البيانات من ملف</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="violations-management" class="tab-content card p-4 sm:p-6 mb-8">
+            <h2 class="text-xl sm:text-2xl font-bold text-[#3f51b5] mb-6 border-b-2 border-[#3f51b5] pb-2">إدارة المخالفات</h2>
+            <div class="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                <h3 class="text-lg sm:text-xl font-semibold text-gray-700 mb-3">إضافة / تعديل مخالفة</h3>
+                <form id="violationForm" class="space-y-4">
+                    <input type="hidden" id="violationId" name="violationId">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="violationNumber" class="block text-sm font-medium text-gray-700 mb-1">رقم المخالفة <span class="text-red-500">*</span>:</label>
+                            <input type="text" id="violationNumber" name="violationNumber" required class="form-input">
+                        </div>
+                        <div>
+                            <label for="violationDate" class="block text-sm font-medium text-gray-700 mb-1">تاريخ المخالفة <span class="text-red-500">*</span>:</label>
+                            <input type="date" id="violationDate" name="violationDate" required class="form-input">
+                        </div>
+                        <div>
+                            <label for="plateNumber" class="block text-sm font-medium text-gray-700 mb-1">رقم اللوحة:</label>
+                            <input type="text" id="plateNumber" name="plateNumber" class="form-input">
+                        </div>
+                        <div>
+                            <label for="city" class="block text-sm font-medium text-gray-700 mb-1">المدينة:</label>
+                            <input type="text" id="city" name="city" class="form-input">
+                        </div>
+                        <div>
+                            <label for="violationEmployee" class="block text-sm font-medium text-gray-700 mb-1">الموظف/السائق <span class="text-red-500">*</span>:</label>
+                            <select id="violationEmployee" name="violationEmployee" required class="form-select">
+                                <option value="">اختر موظف...</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="violationAmount" class="block text-sm font-medium text-gray-700 mb-1">المبلغ (ريال) <span class="text-red-500">*</span>:</label>
+                            <input type="number" id="violationAmount" name="violationAmount" step="0.01" value="0" required class="form-input">
+                        </div>
+                        <div>
+                            <label for="violationDetails" class="block text-sm font-medium text-gray-700 mb-1">التفاصيل <span class="text-red-500">*</span>:</label>
+                            <input type="text" id="violationDetails" name="violationDetails" required class="form-input">
+                        </div>
+                        <div>
+                            <label for="violationStatus" class="block text-sm font-medium text-gray-700 mb-1">الحالة:</label>
+                            <select id="violationStatus" name="violationStatus" class="form-select">
+                                <option value="غير مدفوعة">غير مدفوعة</option>
+                                <option value="مدفوعة">مدفوعة</option>
+                                <option value="قيد المراجعة">قيد المراجعة</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label for="violationNotes" class="block text-sm font-medium text-gray-700 mb-1">ملاحظات:</label>
+                        <textarea id="violationNotes" name="violationNotes" rows="3" class="form-input"></textarea>
+                    </div>
+                    <div class="flex space-x-3 space-x-reverse">
+                        <button type="submit" id="saveViolationButton" class="btn btn-primary">حفظ المخالفة</button>
+                        <button type="button" id="clearViolationFormButton" class="btn btn-secondary">إلغاء</button>
+                    </div>
+                </form>
+            </div>
+            <div class="mb-4">
+                <input type="text" id="violationsTableSearch" placeholder="بحث في المخالفات..." class="form-input">
+            </div>
+            <div class="overflow-x-auto">
+                <h3 class="text-lg sm:text-xl font-semibold text-gray-700 mb-3 mt-6">سجل المخالفات</h3>
+                <table id="violationsTable" class="min-w-full divide-y divide-gray-200 border border-gray-300">
+                    <thead class="table-header">
+                        <tr>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="id">م <span id="violationsTable_idSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="violationNumber">رقم المخالفة <span id="violationsTable_violationNumberSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="date">التاريخ <span id="violationsTable_dateSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="employeeName">الموظف/السائق <span id="violationsTable_employeeNameSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="plateNumber">رقم اللوحة <span id="violationsTable_plateNumberSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="city">المدينة <span id="violationsTable_citySortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="amount">المبلغ (ريال) <span id="violationsTable_amountSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="details">التفاصيل <span id="violationsTable_detailsSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="status">الحالة <span id="violationsTable_statusSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="notes">ملاحظات <span id="violationsTable_notesSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider">إجراءات</th>
+                        </tr>
+                        <tr class="bg-gray-200">
+                            <th class="px-1 py-1"></th>
+                            <th class="px-1 py-1">
+                                <input type="text" id="filterViolationNumber" placeholder="بحث بالرقم..." class="filter-input">
+                            </th>
+                            <th class="px-1 py-1">
+                                <input type="date" id="filterViolationDate" class="filter-input">
+                            </th>
+                            <th class="px-1 py-1">
+                                <input type="text" id="filterViolationEmployeeName" placeholder="بحث بالموظف..." class="filter-input">
+                            </th>
+                            <th class="px-1 py-1">
+                                <input type="text" id="filterViolationPlateNumber" placeholder="بحث باللوحة..." class="filter-input">
+                            </th>
+                            <th class="px-1 py-1">
+                                <input type="text" id="filterViolationCity" placeholder="بحث بالمدينة..." class="filter-input">
+                            </th>
+                            <th class="px-1 py-1"></th>
+                            <th class="px-1 py-1">
+                                <input type="text" id="filterViolationDetails" placeholder="بحث بالتفاصيل..." class="filter-input">
+                            </th>
+                            <th class="px-1 py-1">
+                                <select id="filterViolationStatus" class="filter-input bg-white">
+                                    <option value="">الكل</option>
+                                    <option value="غير مدفوعة">غير مدفوعة</option>
+                                    <option value="مدفوعة">مدفوعة</option>
+                                    <option value="قيد المراجعة">قيد المراجعة</option>
+                                </select>
+                            </th>
+                            <th class="px-1 py-1"></th>
+                            <th class="px-1 py-1"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <tr><td colspan="11" class="px-6 py-4 text-center">جاري تحميل البيانات...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="residency-expiry-management" class="tab-content card p-4 sm:p-6 mb-8">
+            <h2 class="text-xl sm:text-2xl font-bold text-[#3f51b5] mb-6 border-b-2 border-[#3f51b5] pb-2">انتهاء الإقامة</h2>
+            <div class="mb-4">
+                <input type="text" id="residencyExpiryTableSearch" placeholder="بحث في تواريخ انتهاء الإقامة..." class="form-input">
+            </div>
+            <div class="overflow-x-auto">
+                <h3 class="text-lg sm:text-xl font-semibold text-gray-700 mb-3 mt-6">قائمة الموظفين وتواريخ انتهاء الهوية/الإقامة</h3>
+                <table id="residencyExpiryTable" class="min-w-full divide-y divide-gray-200 border border-gray-300">
+                    <thead class="table-header">
+                        <tr>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="id">م <span id="residencyExpiryTable_idSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="name">اسم الموظف <span id="residencyExpiryTable_nameSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="idExpiryDate">تاريخ انتهاء الهوية/الإقامة <span id="residencyExpiryTable_idExpiryDateSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="remainingDuration">المدة المتبقية <span id="residencyExpiryTable_remainingDurationSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="status">الحالة <span id="residencyExpiryTable_statusSortIndicator" class="sort-indicator"></span></th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <tr><td colspan="5" class="px-6 py-4 text-center">جاري تحميل البيانات...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="advances-management" class="tab-content card p-4 sm:p-6 mb-8">
+            <h2 class="text-xl sm:text-2xl font-bold text-[#3f51b5] mb-6 border-b-2 border-[#3f51b5] pb-2">إدارة السلف</h2>
+            <div class="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                <h3 class="text-lg sm:text-xl font-semibold text-gray-700 mb-3">إضافة / تعديل سلفة</h3>
+                <form id="advanceForm" class="space-y-4">
+                    <input type="hidden" id="advanceId" name="advanceId">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="advanceEmployee" class="block text-sm font-medium text-gray-700 mb-1">الموظف:</label>
+                            <select id="advanceEmployee" name="advanceEmployee" required class="form-select">
+                                <option value="">اختر موظف...</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="advanceDate" class="block text-sm font-medium text-gray-700 mb-1">تاريخ السلفة:</label>
+                            <input type="date" id="advanceDate" name="advanceDate" required class="form-input">
+                        </div>
+                        <div>
+                            <label for="advanceAmount" class="block text-sm font-medium text-gray-700 mb-1">المبلغ الإجمالي (ريال):</label>
+                            <input type="number" id="advanceAmount" name="advanceAmount" step="0.01" value="0" required class="form-input">
+                        </div>
+                        <div>
+                            <label for="advanceReason" class="block text-sm font-medium text-gray-700 mb-1">السبب:</label>
+                            <input type="text" id="advanceReason" name="advanceReason" class="form-input">
+                        </div>
+                    </div>
+                    <div>
+                        <label for="advanceNotes" class="block text-sm font-medium text-gray-700 mb-1">ملاحظات:</label>
+                        <textarea id="advanceNotes" name="advanceNotes" rows="3" class="form-input"></textarea>
+                    </div>
+                    <div class="flex space-x-3 space-x-reverse">
+                        <button type="submit" id="saveAdvanceButton" class="btn btn-primary">إضافة سلفة</button>
+                        <button type="button" id="clearAdvanceFormButton" class="btn btn-secondary">مسح الحقول</button>
+                    </div>
+                </form>
+            </div>
+            <div class="mb-4">
+                <input type="text" id="advancesTableSearch" placeholder="بحث في السلف..." class="form-input">
+            </div>
+            <div class="overflow-x-auto">
+                <h3 class="text-lg sm:text-xl font-semibold text-gray-700 mb-3 mt-6">سجل السلف</h3>
+                <table id="advancesTable" class="min-w-full divide-y divide-gray-200 border border-gray-300">
+                    <thead class="table-header">
+                        <tr>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="id">م <span id="advancesTable_idSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="employeeName">الموظف <span id="advancesTable_employeeNameSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="date">التاريخ <span id="advancesTable_dateSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="amount">المبلغ الإجمالي <span id="advancesTable_amountSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="paidAmount">المدفوع <span id="advancesTable_paidAmountSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="remainingAmount">المتبقي <span id="advancesTable_remainingAmountSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="reason">السبب <span id="advancesTable_reasonSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="status">الحالة <span id="advancesTable_statusSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="notes">ملاحظات <span id="advancesTable_notesSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider">إجراءات</th>
+                        </tr>
+                        <tr class="bg-gray-200">
+                            <th class="px-1 py-1"></th>
+                            <th class="px-1 py-1">
+                                <input type="text" id="filterAdvanceEmployeeName" placeholder="بحث بالاسم..." class="filter-input">
+                            </th>
+                            <th class="px-1 py-1">
+                                <input type="date" id="filterAdvanceDate" class="filter-input">
+                            </th>
+                            <th class="px-1 py-1"></th>
+                            <th class="px-1 py-1"></th>
+                            <th class="px-1 py-1"></th>
+                            <th class="px-1 py-1">
+                                <input type="text" id="filterAdvanceReason" placeholder="بحث بالسبب..." class="filter-input">
+                            </th>
+                            <th class="px-1 py-1">
+                                <select id="filterAdvanceStatus" class="filter-input bg-white">
+                                    <option value="">الكل</option>
+                                    <option value="مستحقة">مستحقة</option>
+                                    <option value="مدفوع جزئياً">مدفوع جزئياً</option>
+                                    <option value="مستوفاة">مستوفاة</option>
+                                </select>
+                            </th>
+                            <th class="px-1 py-1"></th>
+                            <th class="px-1 py-1"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <tr><td colspan="10" class="px-6 py-4 text-center">جاري تحميل البيانات...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="car-assignments" class="tab-content card p-4 sm:p-6 mb-8">
+            <h2 class="text-xl sm:text-2xl font-bold text-[#3f51b5] mb-6 border-b-2 border-[#3f51b5] pb-2">تخصيص السيارات للموظفين</h2>
+            <div class="mb-4">
+                <input type="text" id="carAssignmentsTableSearch" placeholder="بحث في تخصيصات السيارات..." class="form-input">
+            </div>
+            <div class="overflow-x-auto">
+                <h3 class="text-lg sm:text-xl font-semibold text-gray-700 mb-3 mt-6">قائمة تخصيصات السيارات</h3>
+                <table id="carAssignmentsTable" class="min-w-full divide-y divide-gray-200 border border-gray-300">
+                    <thead class="table-header">
+                        <tr>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="id">م <span id="carAssignmentsTable_idSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="name">اسم الموظف <span id="carAssignmentsTable_nameSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="idNumber">رقم الهوية <span id="carAssignmentsTable_idNumberSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="idIssuanceNumber">رقم إصدار الهوية <span id="carAssignmentsTable_idIssuanceNumberSortIndicator" class="sort-indicator"></span></th>
+                            <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider" data-sort-key="carNumber">رقم السيارة المخصصة <span id="carAssignmentsTable_carNumberSortIndicator" class="sort-indicator"></span></th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <tr><td colspan="5" class="px-6 py-4 text-center">جاري تحميل البيانات...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="confirmationModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" data-close-modal="confirmationModal">&times;</span>
+            <p id="modalMessage" class="text-lg mb-4"></p>
+            <div class="flex justify-end space-x-3 space-x-reverse">
+                <button id="confirmActionButton" class="btn btn-danger">نعم</button>
+                <button class="btn btn-secondary" data-close-modal="confirmationModal">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="partialPaymentModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" data-close-modal="partialPaymentModal">&times;</span>
+            <h3 class="text-xl font-semibold mb-4 text-[#3f51b5]">دفع جزء من السلفة</h3>
+            <form id="partialPaymentForm">
+                <input type="hidden" id="partialPaymentAdvanceId">
+                <div class="mb-3">
+                    <p><strong>الموظف:</strong> <span id="partialPaymentEmployeeName"></span></p>
+                    <p><strong>المبلغ الإجمالي للسلفة:</strong> <span id="partialPaymentTotalAmount"></span> ريال</p>
+                    <p><strong>المبلغ المدفوع سابقاً:</strong> <span id="partialPaymentAlreadyPaid"></span> ريال</p>
+                    <p><strong>المبلغ المتبقي:</strong> <span id="partialPaymentRemainingAmount"></span> ريال</p>
+                </div>
+                <div>
+                    <label for="partialPaymentAmountToPay" class="block text-sm font-medium text-gray-700 mb-1">المبلغ المراد دفعه الآن (ريال):</label>
+                    <input type="number" id="partialPaymentAmountToPay" step="0.01" required class="form-input">
+                </div>
+                <div class="mt-6 flex justify-end space-x-3 space-x-reverse">
+                    <button type="submit" class="btn btn-success">حفظ الدفعة</button>
+                    <button type="button" class="btn btn-secondary" data-close-modal="partialPaymentModal">إلغاء</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="toastNotification" class="fixed bottom-5 right-5 p-4 rounded-md shadow-lg text-white hidden z-[2000]">
+        <span id="toastMessage"></span>
+    </div>
+
+    <script src="script_part1_setup.js"></script>
+    <script src="script_part2_database_data_management.js"></script>
+    <script src="reports.js"></script>
+    <script src="script_part3_ui_events_load.js"></script>
+</body>
+</html>
